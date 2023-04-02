@@ -1,5 +1,5 @@
 import { PermissionsBitField, SlashCommandBuilder } from "discord.js";
-import { command, embed } from "../../utils";
+import { command, embed, replacer, stringSplit } from "../../utils";
 import models from "../../models";
 
 const { welcomeRole } = models;
@@ -41,18 +41,31 @@ export default command(meta, async ({ interaction }) => {
     }).save();
   }
 
+  const replaced = replacer(message, [
+    {
+      label: "NAME",
+      value: "username#1234",
+    },
+    {
+      label: "SERVER",
+      value: interaction.guild?.name!,
+    },
+  ]);
+
   return interaction.reply({
     ephemeral: true,
     embeds: [
       embed({
         title: "Welcome message",
-        description: `New users will be recieve ${
-          model && model.channelId !== "DM"
-            ? "messages in welcome channel"
-            : "DM"
-        } (if you want change type /start-channel)\nYour message: \n${message
-          .replace(/NAME/g, "username#1234")
-          .replace(/SERVER/g, interaction.guild?.name!)}`,
+        description: stringSplit([
+          `New users will be recieve ${
+            model && model.channelId !== "DM"
+              ? "messages in welcome channel"
+              : "DM"
+          } (if you want change type /start-channel)`,
+          `Your message: `,
+          `${replaced}`,
+        ]),
       }),
     ],
   });

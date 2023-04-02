@@ -7,9 +7,13 @@ import channel from "./channels";
 import reaction from "./reaction";
 import youtube from "./youtube";
 import music from "./music";
+import dm from "./dm";
+import automod from "./automod";
 
 export default [
+  automod,
   channel,
+  dm,
   music,
   youtube,
   reaction,

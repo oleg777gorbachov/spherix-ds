@@ -27,6 +27,9 @@ export default command(meta, async ({ interaction }) => {
             title: question!,
             description: data.choices[0].text!,
             color: Colors.random(),
+            footer: {
+              text: `by ${interaction.user.tag} id ${interaction.user.id}`,
+            },
           }),
         ],
       });

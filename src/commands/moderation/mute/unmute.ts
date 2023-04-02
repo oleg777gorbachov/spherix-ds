@@ -1,12 +1,12 @@
 import {
-  APIEmbedFooter,
+  ChannelType,
   PermissionsBitField,
   SlashCommandBuilder,
 } from "discord.js";
 import { Colors, command, embed } from "../../../utils";
 import models from "../../../models";
 
-const { punishment } = models;
+const { punishment, modChannel } = models;
 
 const meta = new SlashCommandBuilder()
   .setName("unmute")
@@ -22,7 +22,7 @@ export default command(meta, async ({ interaction }) => {
   const user = interaction.options.getUser("user");
 
   const modId = interaction.user.id;
-  const mod = await interaction.guild?.members.fetch(modId);
+  const mod = interaction.guild?.members.cache.get(modId);
 
   if (!mod?.permissions.has([PermissionsBitField.Flags.MuteMembers])) {
     return interaction.reply({
@@ -37,7 +37,7 @@ export default command(meta, async ({ interaction }) => {
   const muteRole = interaction.guild?.roles.cache.find((role) =>
     role.name.toLowerCase().includes("muted" || "mute")
   );
-  const userToMute = await interaction.guild?.members.fetch(user?.id || "");
+  const userToMute = interaction.guild?.members.cache.get(user?.id || "");
 
   if (!gid || !uid || !userToMute || !mod || !muteRole) {
     return interaction.reply({
@@ -45,8 +45,6 @@ export default command(meta, async ({ interaction }) => {
       content: `Wrong data`,
     });
   }
-
-  await punishment.findOneAndDelete({ gid, uid });
 
   try {
     userToMute.roles.remove(muteRole);
@@ -57,17 +55,42 @@ export default command(meta, async ({ interaction }) => {
     });
   }
 
-  const footer: APIEmbedFooter = {
-    text: `by ${mod.displayName}`,
-  };
+  const description = `${userToMute} has been unmuted`;
+  const title = "😀 Unmute";
+  const modModel = await modChannel.findOne({ gid });
+
+  if (modModel) {
+    const channel = interaction.guild.channels.cache.get(modModel.channelId);
+    if (channel && channel.type === ChannelType.GuildText) {
+      await channel.send({
+        embeds: [
+          embed({
+            title,
+            description,
+            color: Colors.white,
+            thumbnail: {
+              url: mod.displayAvatarURL(),
+            },
+            footer: {
+              text: `id: ${mod.id} | by ${mod.user.tag}`,
+            },
+          }),
+        ],
+      });
+    }
+  }
+
+  await punishment.findOneAndDelete({ gid, uid, type: "mute" });
 
   return interaction.reply({
     embeds: [
       embed({
-        title: "Unmute",
-        description: `${userToMute} has been unmuted`,
+        title,
+        description,
         color: Colors.success,
-        footer,
+        footer: {
+          text: `by ${mod.displayName}`,
+        },
       }),
     ],
   });

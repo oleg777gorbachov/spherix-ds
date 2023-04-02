@@ -1,13 +1,21 @@
 import {
-  APIEmbedFooter,
+  ChannelType,
   PermissionsBitField,
   SlashCommandBuilder,
   TextChannel,
 } from "discord.js";
-import { Colors, command, embed } from "../../../utils";
+import {
+  Colors,
+  command,
+  DM,
+  embed,
+  numToTime,
+  stringSplit,
+  timeConvert,
+} from "../../../utils";
 import models from "../../../models";
 
-const { punishment } = models;
+const { punishment, modChannel } = models;
 
 const meta = new SlashCommandBuilder()
   .setName("mute")
@@ -18,10 +26,10 @@ const meta = new SlashCommandBuilder()
       .setDescription("Provide a username")
       .setRequired(true)
   )
-  .addNumberOption((option) =>
+  .addStringOption((option) =>
     option
       .setName("timeout")
-      .setDescription("Time to mute user")
+      .setDescription("Time to mute user (1y, 1m, 1w, 1d, 1min, 1s)")
       .setRequired(true)
   )
   .addStringOption((option) =>
@@ -34,11 +42,13 @@ const meta = new SlashCommandBuilder()
 
 export default command(meta, async ({ interaction }) => {
   const user = interaction.options.getUser("user");
-  const time = interaction.options.getNumber("timeout");
+  let time: string | number = interaction.options.getString(
+    "timeout"
+  ) as string;
   const reason = interaction.options.getString("reason");
 
   const modId = interaction.user.id;
-  const mod = await interaction.guild?.members.fetch(modId);
+  const mod = interaction.guild?.members.cache.get(modId);
 
   if (!mod?.permissions.has([PermissionsBitField.Flags.MuteMembers])) {
     return interaction.reply({
@@ -47,14 +57,23 @@ export default command(meta, async ({ interaction }) => {
     });
   }
 
+  const numTime = timeConvert(time);
+  if (numTime === undefined) {
+    return interaction.reply({
+      ephemeral: true,
+      content: `Wrong parametrs`,
+    });
+  }
+  time = numTime;
+
   const gid = interaction.guild?.id;
   const uid = user?.id;
-  const expires = new Date().getTime() + time! * 1000;
+  const expires = new Date().getTime() + time * 1000;
 
   let muteRole = interaction.guild?.roles.cache.find((role) =>
     role.name.toLowerCase().includes("muted" || "mute")
   );
-  const userToMute = await interaction.guild?.members.fetch(user?.id || "");
+  const userToMute = interaction.guild?.members.cache.get(user?.id || "");
 
   if (!muteRole) {
     muteRole = await interaction.guild?.roles.create({
@@ -84,6 +103,62 @@ export default command(meta, async ({ interaction }) => {
     });
   }
 
+  try {
+    await userToMute.timeout(null, reason);
+    await userToMute.roles.add(muteRole);
+    await DM(
+      interaction,
+      {
+        embeds: [
+          embed({
+            title: "🤐 Muted",
+            description: `You're muted by ${
+              mod.user.tag
+            }\nReason: ${reason}\nTime ${numToTime(time)}`,
+            footer: {
+              icon_url: interaction.guild?.iconURL()!,
+              text: `${interaction.guild?.name}`,
+            },
+          }),
+        ],
+      },
+      userToMute
+    );
+  } catch (error) {
+    return interaction.reply({
+      ephemeral: true,
+      content:
+        "❌ I cannot mute that user, check user permission or bot permission",
+    });
+  }
+
+  const description = stringSplit([
+    `${userToMute} has been muted for **${numToTime(time)}**.`,
+    `Reason: **${reason}**`,
+  ]);
+  const modModel = await modChannel.findOne({ gid });
+
+  if (modModel) {
+    const channel = interaction.guild.channels.cache.get(modModel.channelId);
+    if (channel && channel.type === ChannelType.GuildText) {
+      await channel.send({
+        embeds: [
+          embed({
+            title: "🤐 Mute",
+            description,
+            color: Colors.white,
+            thumbnail: {
+              url: mod.displayAvatarURL(),
+            },
+            footer: {
+              text: `id: ${mod.id} | by ${mod.user.tag}`,
+            },
+          }),
+        ],
+      });
+    }
+  }
+
   let punish = await punishment.findOne({ gid, uid, type: "mute" });
   if (punish) {
     punish.reason = reason;
@@ -101,31 +176,15 @@ export default command(meta, async ({ interaction }) => {
     }).save();
   }
 
-  try {
-    await userToMute.timeout(null, reason);
-    userToMute.roles.add(muteRole);
-  } catch (error) {
-    return interaction.reply({
-      ephemeral: true,
-      content: "I cannot mute that user",
-    });
-  }
-
-  const footer: APIEmbedFooter = {
-    text: `by ${mod.displayName}`,
-  };
-
-  const footerUnMuted: APIEmbedFooter = {
-    text: `by ${mod.displayName}\nAlready unmuted.`,
-  };
-
   return interaction
     .reply({
       embeds: [
         embed({
-          title: "Mute",
-          description: `${userToMute} has been muted for **${time}** seconds.\nReason: **${reason}**`,
-          footer,
+          title: "🤐 Mute",
+          description,
+          footer: {
+            text: `by ${mod.displayName}`,
+          },
         }),
       ],
       fetchReply: true,
@@ -139,14 +198,16 @@ export default command(meta, async ({ interaction }) => {
           message.edit({
             embeds: [
               embed({
-                title: "Mute",
+                title: "😀 Unmute",
                 color: Colors.success,
-                description: `${userToMute} has been muted for ${time} seconds.\nReason: **${reason}**`,
-                footer: footerUnMuted,
+                description,
+                footer: {
+                  text: `by ${mod.displayName}\nAlready unmuted.`,
+                },
               }),
             ],
           });
         }
-      }, time! * 1000)
+      }, +time * 1000)
     );
 });

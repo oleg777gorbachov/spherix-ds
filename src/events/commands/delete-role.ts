@@ -10,7 +10,7 @@ const interactionCreate = event(
 
     if (interaction.isStringSelectMenu()) {
       if (interaction.customId === CustomId.roleRmove) {
-        const userExec = await interaction.guild?.members.fetch(
+        const userExec = interaction.guild?.members.cache.get(
           interaction.user.id
         );
         if (

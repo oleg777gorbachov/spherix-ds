@@ -1,10 +1,12 @@
 import {
-  APIEmbedFooter,
+  ChannelType,
   PermissionsBitField,
   SlashCommandBuilder,
   TextChannel,
 } from "discord.js";
-import { Colors, command, embed } from "../../../utils";
+import { Colors, command, DM, embed } from "../../../utils";
+import models from "../../../models";
+const { punishment, modChannel } = models;
 
 const meta = new SlashCommandBuilder()
   .setName("unban")
@@ -23,6 +25,7 @@ export default command(meta, async ({ interaction }) => {
   const user = interaction.options.getUser("user");
   const uid = interaction.options.getString("uid");
 
+  const gid = interaction.guildId;
   const modId = interaction.user.id;
   const mod = interaction.guild?.members.cache.get(modId);
 
@@ -65,17 +68,25 @@ export default command(meta, async ({ interaction }) => {
       }
     );
     await interaction.guild?.members.unban(userToUnban);
-    await interaction.client.users.send(userToUnban, {
-      embeds: [
-        embed({
-          title: `You have been unbanned on ${interaction.guild?.name}`,
-          description: `__Your welcome ${
-            userToUnban.username
-          }__\n${linkToServer?.toString()}\nunbanned by **${mod.user.tag}**`,
-          color: Colors.success,
-        }),
-      ],
-    });
+    await DM(
+      interaction,
+      {
+        embeds: [
+          embed({
+            title: `You have been unbanned on ${interaction.guild?.name}`,
+            description: `__Your welcome ${
+              userToUnban.username
+            }__\n${linkToServer?.toString()}\nunbanned by **${mod.user.tag}**`,
+            color: Colors.success,
+            footer: {
+              icon_url: interaction.guild?.iconURL()!,
+              text: `${interaction.guild?.name}`,
+            },
+          }),
+        ],
+      },
+      userToUnban
+    );
   } catch (error) {
     return interaction.reply({
       ephemeral: true,
@@ -83,17 +94,50 @@ export default command(meta, async ({ interaction }) => {
     });
   }
 
-  const footer: APIEmbedFooter = {
-    text: `by ${mod.displayName}`,
-  };
+  const title = "✅ Unban";
+  const description = `${userToUnban} has been **unbanned**!`;
+
+  const modModel = await modChannel.findOne({ gid });
+
+  if (modModel) {
+    const channel = interaction.guild?.channels.cache.get(modModel.channelId);
+    if (channel && channel.type === ChannelType.GuildText) {
+      await channel.send({
+        embeds: [
+          embed({
+            title,
+            description,
+            color: Colors.white,
+            thumbnail: {
+              url: mod.displayAvatarURL(),
+            },
+            footer: {
+              text: `id: ${mod.id} | by ${mod.user.tag}`,
+            },
+          }),
+        ],
+      });
+    }
+  }
+
+  const model = await punishment.find({
+    gid: interaction.guild?.id,
+    uid: user?.id,
+  });
+
+  for (let key of model) {
+    await key.deleteOne();
+  }
 
   return interaction.reply({
     embeds: [
       embed({
         color: Colors.success,
-        title: "Unban",
-        description: `${userToUnban.tag} has been **unbanned**!`,
-        footer,
+        title,
+        description,
+        footer: {
+          text: `by ${mod.displayName}`,
+        },
       }),
     ],
   });

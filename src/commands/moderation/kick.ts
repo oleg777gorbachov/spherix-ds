@@ -3,7 +3,7 @@ import {
   PermissionsBitField,
   SlashCommandBuilder,
 } from "discord.js";
-import { command, embed } from "../../utils";
+import { command, DM, embed } from "../../utils";
 
 const meta = new SlashCommandBuilder()
   .setName("kick")
@@ -24,7 +24,7 @@ export default command(meta, async ({ interaction }) => {
   const reason = interaction.options.getString("reason");
 
   const modId = interaction.user.id;
-  const mod = await interaction.guild?.members.fetch(modId);
+  const mod = interaction.guild?.members.cache.get(modId);
 
   if (!mod?.permissions.has([PermissionsBitField.Flags.KickMembers])) {
     return interaction.reply({
@@ -33,7 +33,7 @@ export default command(meta, async ({ interaction }) => {
     });
   }
 
-  const userToKick = await interaction.guild?.members.fetch(user?.id || "");
+  const userToKick = interaction.guild?.members.cache.get(user?.id || "");
 
   if (!reason || !user || !userToKick || !mod) {
     return interaction.reply({
@@ -44,14 +44,18 @@ export default command(meta, async ({ interaction }) => {
 
   try {
     await userToKick.kick(reason);
-    await interaction.client.users.send(userToKick, {
-      embeds: [
-        embed({
-          title: "Kick",
-          description: `You're kicked by ${mod.user.tag}\nReason: ${reason}`,
-        }),
-      ],
-    });
+    await DM(
+      interaction,
+      {
+        embeds: [
+          embed({
+            title: "Kick",
+            description: `You're kicked by ${mod.user.tag}\nReason: ${reason}`,
+          }),
+        ],
+      },
+      userToKick
+    );
   } catch (error) {
     return interaction.reply({
       ephemeral: true,
@@ -66,7 +70,7 @@ export default command(meta, async ({ interaction }) => {
   return interaction.reply({
     embeds: [
       embed({
-        title: "Kick",
+        title: "❌ Kick",
         description: `${userToKick} has been kicked.\nReason: **${reason}**`,
         footer,
       }),

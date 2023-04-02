@@ -20,7 +20,7 @@ const meta = new SlashCommandBuilder()
 export default command(meta, async ({ interaction }) => {
   const id = interaction.options.getUser("user")!.id;
   const role = interaction.options.getRole("role") as Role;
-  const date = interaction.options.getString("date") as string;
+  let date: number | string = interaction.options.getString("date") as string;
 
   const userExec = interaction.guild?.members.cache.get(interaction.user.id);
 
@@ -30,6 +30,15 @@ export default command(meta, async ({ interaction }) => {
       content: `Insufficient permission`,
     });
   }
+
+  const numTime = timeConvert(date);
+  if (numTime === undefined) {
+    return interaction.reply({
+      ephemeral: true,
+      content: `Wrong parametrs`,
+    });
+  }
+  date = numTime;
 
   const user = interaction.guild?.members.cache.get(id);
 
@@ -49,7 +58,7 @@ export default command(meta, async ({ interaction }) => {
     });
   }
 
-  setTimeout(() => user?.roles.remove(role), timeConvert(date) * 1000);
+  setTimeout(() => user?.roles.remove(role), date * 1000);
 
   return interaction.reply({
     ephemeral: true,

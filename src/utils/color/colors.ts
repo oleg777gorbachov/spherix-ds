@@ -4,5 +4,7 @@ export const Colors = {
   twitch: 0x6441a5,
   youtube: 0xff0000,
   gray: 0x474d49,
+  white: 0xf4faff,
+  warn: 0xffa500,
   random: () => +`0x${Math.floor(Math.random() * 16777215).toString(16)}`,
 };

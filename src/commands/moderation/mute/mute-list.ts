@@ -3,7 +3,7 @@ import {
   PermissionsBitField,
   SlashCommandBuilder,
 } from "discord.js";
-import { Colors, command, embed } from "../../../utils";
+import { Colors, command, embed, numToTime } from "../../../utils";
 import models from "../../../models";
 
 const { punishment } = models;
@@ -30,13 +30,15 @@ export default command(meta, async ({ interaction }) => {
   for (let mute of mutes) {
     const user = interaction.client.users.cache.get(mute.uid);
     const mod = interaction.guild?.members.cache.get(mute.modId);
-    const expire = mute.expires - new Date().getTime();
-    const footer: APIEmbedFooter = { text: `Expires in ${expire} seconds` };
+    const expire = numToTime(
+      Math.round((mute.expires - new Date().getTime()) / 1000)
+    );
+    const footer: APIEmbedFooter = { text: `Expires in ${expire}` };
     if (user)
       embeds.push(
         embed({
           title: user.tag,
-          description: `Muted for **${mute.reason}** by ${mod?.user.tag}`,
+          description: `Muted for **${mute.reason}** by ${mod}`,
           footer,
         })
       );
@@ -48,7 +50,7 @@ export default command(meta, async ({ interaction }) => {
       embeds: [
         embed({
           color: Colors.success,
-          title: "Mutes",
+          title: "🤐 Mutes",
           description: "No mutes",
         }),
       ],

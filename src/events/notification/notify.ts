@@ -22,10 +22,10 @@ const ready = event("ready", async ({ log }, client) => {
     if (!isExist) continue;
 
     for (let streamer of isExist.twitch) {
-      await twitchRun(streamer, twitch, guild[1], isExist, intervals);
+      await twitchRun(streamer, twitch, guild[1], intervals);
     }
     for (let id of isExist.youtube) {
-      await youtubeRun(id, guild[1], isExist, intervals);
+      await youtubeRun(id, guild[1], intervals);
     }
   }
 });
@@ -44,13 +44,7 @@ const interactionCreate = event(
         if (!isExist) return;
 
         if (!isExist.twitch.includes(streamer)) {
-          await twitchRun(
-            streamer,
-            twitch,
-            interaction.guild!,
-            isExist,
-            intervals
-          );
+          await twitchRun(streamer, twitch, interaction.guild!, intervals);
         }
       }
       if (interaction.commandName === "twitch-remove") {
@@ -68,7 +62,7 @@ const interactionCreate = event(
         if (!isExist) return;
 
         if (!isExist.youtube.includes(id)) {
-          await youtubeRun(id, interaction.guild!, isExist, intervals);
+          await youtubeRun(id, interaction.guild!, intervals);
         }
       }
       if (interaction.commandName === "youtube-remove") {
@@ -83,7 +77,7 @@ const interactionCreate = event(
     // SELECTABLE MENU
     if (interaction.isStringSelectMenu()) {
       if (interaction.customId === CustomId.twitchRemove) {
-        const userExec = await interaction.guild?.members.fetch(
+        const userExec = interaction.guild?.members.cache.get(
           interaction.user.id
         );
         if (
@@ -124,7 +118,7 @@ const interactionCreate = event(
         });
       }
       if (interaction.customId === CustomId.youtubeRemove) {
-        const userExec = await interaction.guild?.members.fetch(
+        const userExec = interaction.guild?.members.cache.get(
           interaction.user.id
         );
         if (

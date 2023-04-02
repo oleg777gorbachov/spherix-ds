@@ -5,18 +5,22 @@ import statsChange from "./statsChange";
 import voiceUpdate from "./voiceTemp";
 import ranking from "./ranking";
 import notification from "./notification";
-import blacklist from "./blacklist";
 import commands from "./commands";
 import welcome from "./welcome";
 import handlers from "./handlers";
+import logs from "./logs";
+import reminders from "./reminders";
+import automod from "./automod";
 
 const events: Event<any>[] = [
+  ...automod,
+  reminders,
   ready,
+  ...logs,
   ...handlers,
   ...commands,
   ...notification,
   voiceUpdate,
-  ...blacklist,
   ...ranking,
   interactionCreate,
   ...welcome,

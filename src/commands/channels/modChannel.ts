@@ -52,7 +52,7 @@ export default command(meta, async ({ interaction }) => {
   const isExist = await modChannel.findOne({ gid });
   if (isExist) {
     const channnel = interaction.guild?.channels.cache.get(isExist.channelId);
-    await (channel as TextChannel).messages.cache
+    await (channnel as TextChannel).messages.cache
       .get(isExist.messageId)
       ?.delete();
     isExist.channelId = channel?.id!;

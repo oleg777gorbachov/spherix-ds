@@ -2,7 +2,8 @@ import { Document } from "mongoose";
 
 export interface statsI extends Document {
   state: boolean;
-  onlineId: string;
+  allMembersId: string;
+  botId: string;
   membersId: string;
   categoryId: string;
   gid: string;

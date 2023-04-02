@@ -37,10 +37,6 @@ export default command(meta, async ({ interaction }) => {
   );
 
   const messages = allMessages.filter((e) => {
-    // const state = links
-    //   .map((l) => e.content.includes(l) && e.content.length > 7)
-    //   .includes(true);
-    // return state;
     return isIncludeLink(e.content);
   });
 

@@ -1,6 +1,7 @@
 import { Role, TextChannel } from "discord.js";
-import { event } from "../../utils";
+import { event, replacer } from "../../utils";
 import models from "../../models";
+import role from "../logs/role";
 
 const { welcomeRole } = models;
 
@@ -27,9 +28,17 @@ export default event("guildMemberAdd", async ({ log }, client) => {
   }
 
   if (roleDb.messageState && roleDb.message) {
-    const content = roleDb.message
-      .replace(/NAME/g, client.user as never as string)
-      .replace(/SERVER/g, client.guild?.name!);
+    const content = replacer(roleDb.message, [
+      {
+        label: "NAME",
+        value: client.user as never as string,
+      },
+      {
+        label: "SERVER",
+        value: client.guild?.name!,
+      },
+    ]);
+
     if (roleDb.channelId === "DM") {
       return client.user.send({
         content,

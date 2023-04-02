@@ -1,5 +1,5 @@
 import { PermissionsBitField, SlashCommandBuilder } from "discord.js";
-import { Colors, command, embed } from "../../utils";
+import { Colors, command, embed, replacer } from "../../utils";
 import models from "../../models";
 const { notification } = models;
 
@@ -39,14 +39,23 @@ export default command(meta, async ({ interaction }) => {
   isExist.messageYoutube = message;
   await isExist.save();
 
+  const replaced = replacer(message, [
+    {
+      label: "LINK",
+      value: "https://www.youtube.com/@xQcOW",
+    },
+    {
+      label: "NAME",
+      value: "xQc",
+    },
+  ]);
+
   return interaction.reply({
     embeds: [
       embed({
         title: "Notification message",
         color: Colors.twitch,
-        description: `${message
-          .replace(/LINK/g, "https://www.youtube.com/@xQcOW")
-          .replace(/NAME/g, "xQc")}`,
+        description: `${replaced}`,
       }),
     ],
   });

@@ -1,13 +1,23 @@
 import {
   APIEmbedFooter,
+  ChannelType,
   PermissionsBitField,
   SlashCommandBuilder,
   TextChannel,
 } from "discord.js";
-import { Colors, command, embed, timeConvert } from "../../../utils";
+import {
+  Colors,
+  command,
+  DM,
+  embed,
+  numToTime,
+  stringSplit,
+  unban,
+  timeConvert,
+} from "../../../utils";
 import models from "../../../models";
 
-const { punishment } = models;
+const { punishment, modChannel } = models;
 
 const meta = new SlashCommandBuilder()
   .setName("ban")
@@ -34,11 +44,13 @@ const meta = new SlashCommandBuilder()
 
 export default command(meta, async ({ interaction }) => {
   const user = interaction.options.getUser("user");
-  const time = interaction.options.getString("date");
+  let time: string | number | undefined =
+    interaction.options.getString("date") || "";
   const reason = interaction.options.getString("reason");
 
   const modId = interaction.user.id;
-  const mod = await interaction.guild?.members.fetch(modId);
+  const mod = interaction.guild?.members.cache.get(modId);
+  const gid = interaction.guildId;
 
   if (!mod?.permissions.has([PermissionsBitField.Flags.BanMembers])) {
     return interaction.reply({
@@ -47,9 +59,18 @@ export default command(meta, async ({ interaction }) => {
     });
   }
 
-  const userToBan = await interaction.guild?.members.fetch(user?.id || "");
+  const numTime = timeConvert(time);
+  if (time && numTime === undefined) {
+    return interaction.reply({
+      ephemeral: true,
+      content: `Wrong parametrs`,
+    });
+  }
+  time = numTime;
 
-  if (!userToBan || !mod || !reason) {
+  const userToBan = interaction.guild?.members.cache.get(user?.id!);
+
+  if (!userToBan || !mod || !reason || !user) {
     return interaction.reply({
       ephemeral: true,
       content: `Wrong data`,
@@ -58,23 +79,65 @@ export default command(meta, async ({ interaction }) => {
 
   try {
     await userToBan.ban();
-
-    await interaction.client.users.send(userToBan, {
-      embeds: [
-        embed({
-          title: `You have been banned on ${interaction.guild?.name}`,
-          description: `Reason: **${reason}**\nby ${mod.user.tag}\nIf you wanna clarify information, contact to him`,
-        }),
-      ],
-    });
+    await DM(
+      interaction,
+      {
+        embeds: [
+          embed({
+            title: `🚫 You have been banned on ${interaction.guild?.name}`,
+            description: stringSplit([
+              `Reason: **${reason}**`,
+              `by ${mod.user.tag}`,
+              `If you wanna clarify information, contact to him`,
+            ]),
+            footer: {
+              icon_url: interaction.guild?.iconURL()!,
+              text: `${interaction.guild?.name}`,
+            },
+          }),
+        ],
+      },
+      userToBan
+    );
   } catch (error) {
     return interaction.reply({
       ephemeral: true,
       content: "I cannot ban that user",
     });
   }
+
+  const title = "🚫 Ban";
+  const description = stringSplit([
+    `${userToBan} has been **banned**.`,
+    `Reason: **${reason}**`,
+    `Time: ${typeof time === "number" ? numToTime(time) : "until be unbanned"}`,
+  ]);
+
+  const modModel = await modChannel.findOne({ gid });
+
+  if (modModel) {
+    const channel = interaction.guild?.channels.cache.get(modModel.channelId);
+    if (channel && channel.type === ChannelType.GuildText) {
+      await channel.send({
+        embeds: [
+          embed({
+            title,
+            description,
+            color: Colors.white,
+            thumbnail: {
+              url: mod.displayAvatarURL(),
+            },
+            footer: {
+              text: `id: ${mod.id} | by ${mod.user.tag}`,
+            },
+          }),
+        ],
+      });
+    }
+  }
+
   const punish = await new punishment({
-    expires: time ? new Date().getTime() + timeConvert(time) * 1000 : -1,
+    expires: time ? new Date().getTime() + time * 1000 : -1,
     uid: userToBan.user.id,
     modId,
     reason,
@@ -82,46 +145,21 @@ export default command(meta, async ({ interaction }) => {
     type: "ban",
   }).save();
 
-  const footer: APIEmbedFooter = {
-    text: `by ${mod.displayName}`,
-  };
-
   return interaction
     .reply({
       embeds: [
         embed({
-          title: "Ban",
-          description: `${userToBan} has been **banned**.\nReason: **${reason}**\nTime: ${time}`,
-          footer,
+          title,
+          description,
+          footer: {
+            text: `by ${mod.displayName}`,
+          },
         }),
       ],
     })
     .then(() => {
       if (time) {
-        setTimeout(async () => {
-          await punishment.findOneAndDelete({ _id: punish._id });
-          const linkToServer = await interaction.guild?.invites.create(
-            interaction.channel as TextChannel,
-            {
-              maxAge: 0,
-              maxUses: 0,
-            }
-          );
-          await interaction.guild?.members.unban(userToBan);
-          await interaction.client.users.send(userToBan, {
-            embeds: [
-              embed({
-                title: `You have been unbanned on ${interaction.guild?.name}`,
-                description: `__Your welcome ${
-                  userToBan.displayName
-                }__\n${linkToServer?.toString()}\nunbanned by **${
-                  mod.user.tag
-                }**`,
-                color: Colors.success,
-              }),
-            ],
-          });
-        }, timeConvert(time) * 1000);
+        unban(interaction.guild!, punish);
       }
     });
 });

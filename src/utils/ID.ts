@@ -8,6 +8,7 @@ export enum CustomId {
   helpPrev = "help-pagination-prev",
   helpPage = "help-pagination-page",
   ticketClose = "ticket-close",
+  reportClose = "report-close",
   rankVoice = "top-rank-voice",
   rankMessage = "top-rank-message",
 }

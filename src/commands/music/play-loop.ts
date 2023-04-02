@@ -1,6 +1,8 @@
 import { useQueue } from "discord-player";
 import { SlashCommandBuilder } from "discord.js";
-import { command, embed } from "../../utils";
+import { command, embed, premCheck, stringSplit } from "../../utils";
+import models from "../../models";
+const { music } = models;
 
 const meta = new SlashCommandBuilder()
   .setName("play-mode")
@@ -19,6 +21,26 @@ const meta = new SlashCommandBuilder()
 export default command(meta, async ({ interaction }) => {
   let state = interaction.options.getNumber("state");
   const user = interaction.guild?.members.cache.get(interaction.user.id);
+
+  const check = await premCheck(interaction);
+  if (!check) return;
+
+  const gid = interaction.guildId;
+
+  const model = await music.findOne({ gid });
+
+  if (model) {
+    if (interaction.channelId !== model.channelId) {
+      const channel = interaction.guild?.channels.cache.get(model.channelId);
+      return interaction.reply({
+        ephemeral: true,
+        content: stringSplit([
+          `This channel is not for music`,
+          `${channel} - for music`,
+        ]),
+      });
+    }
+  }
 
   if (!user?.voice.channel) {
     return interaction.reply({
@@ -42,7 +64,7 @@ export default command(meta, async ({ interaction }) => {
   return interaction.reply({
     embeds: [
       embed({
-        title: "Music loopping",
+        title: "🎵 Music loopping",
         description: `Music mode - ${
           mode === 0
             ? "Default"
